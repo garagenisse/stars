@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stjärnhimmel-simulering</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #000; color: #eee; overflow: hidden; }
+    #controls {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.60);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 6px 8px;
+      width: min(860px, calc(100vw - 20px));
+      max-height: calc(100vh - 20px);
+      overflow-y: auto;
+      backdrop-filter: blur(2px);
+    }
+    h1 { margin: 0 0 6px; font-size: 14px; }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: end; margin-bottom: 4px; }
+    label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+    input { width: 86px; padding: 3px 5px; font-size: 12px; }
+    button { padding: 4px 8px; cursor: pointer; font-size: 12px; }
+    #status { margin: 6px 0 8px; font-size: 13px; color: #bbb; }
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      border: 0;
+      background: #000;
+      image-rendering: auto;
+      z-index: 1;
+    }
+    .small { font-size: 12px; color: #aaa; margin: 0; }
+    #layerRow, #status, .small { display: none; }
+  </style>
+</head>
+<body>
+  <canvas id="sky" width="610" height="406"></canvas>
+  <div id="controls">
+    <h1>Stjärnhimmel-simulering (seed-styrd)</h1>
+
+    <div class="row">
+      <label>Seed
+        <input id="seed" type="number" value="12345" />
+      </label>
+      <label>MIN (0-255)
+        <input id="minI" type="number" min="0" max="255" value="40" />
+      </label>
+      <label>MAX (0-255)
+        <input id="maxI" type="number" min="0" max="255" value="255" />
+      </label>
+      <label>Fade-tid ms
+        <input id="fadeMs" type="number" min="0" value="2500" />
+      </label>
+      <label>Håll-tid ms
+        <input id="holdMs" type="number" min="0" value="1800" />
+      </label>
+      <label>Paus-tid ms
+        <input id="pauseMs" type="number" min="0" value="700" />
+      </label>
+      <label>Flimmer %
+        <input id="flickerPct" type="number" min="0" max="100" value="30" />
+      </label>
+      <label>Diameter
+        <input id="starDiameter" type="number" min="0.6" max="4" step="0.1" value="1.8" />
+      </label>
+    </div>
+
+    <div class="row" id="layerRow">
+      <label>Ladda star_layers.json manuellt
+        <input id="fileInput" type="file" accept="application/json,.json" />
+      </label>
+    </div>
+
+    <div id="status">Laddar star_layers.json...</div>
+    <p class="small">LED 1-12 = A-L i sekvens. LED 13 = X-stjärnor på konstant MIN-intensitet.</p>
+  </div>
+
+  <script>
+    window.STAR_LAYERS_EMBEDDED = {"canvas": {"width": 610, "height": 406, "img_size": 305, "min_dist": 8, "edge_margin": 20, "num_fillers": 30, "filler_min_dist": 40, "filler_edge_margin": 20}, "layers": [{"number": 1, "margin": {"left": 40, "top": 52, "right": 29, "bottom": 66}, "stars": [[79, 52], [128, 105], [40, 112], [144, 128], [164, 144], [121, 157], [170, 172], [151, 173], [203, 196], [272, 216], [275, 238]]}, {"number": 2, "margin": {"left": 56, "top": 72, "right": 46, "bottom": 82}, "stars": [[81, 72], [127, 80], [56, 116], [185, 120], [231, 132], [258, 133], [65, 140], [225, 160], [109, 161], [142, 164], [202, 192], [201, 222]]}, {"number": 3, "margin": {"left": 89, "top": 72, "right": 84, "bottom": 85}, "stars": [[89, 72], [119, 128], [125, 158], [220, 214], [111, 219]]}, {"number": 4, "margin": {"left": 95, "top": 91, "right": 73, "bottom": 90}, "stars": [[95, 91], [199, 145], [231, 214]]}, {"number": 5, "margin": {"left": 67, "top": 37, "right": 68, "bottom": 48}, "stars": [[236, 37], [129, 76], [225, 79], [166, 103], [206, 104], [146, 160], [192, 160], [110, 174], [205, 204], [67, 213], [135, 230], [156, 242], [111, 256]]}, {"number": 6, "margin": {"left": 58, "top": 43, "right": 57, "bottom": 46}, "stars": [[206, 43], [232, 73], [189, 92], [235, 102], [168, 110], [247, 127], [156, 130], [147, 173], [83, 205], [151, 205], [58, 228], [157, 230], [129, 245], [61, 252], [87, 258]]}, {"number": 7, "margin": {"left": 82, "top": 70, "right": 88, "bottom": 71}, "stars": [[100, 70], [189, 82], [216, 158], [113, 159], [82, 174], [186, 205], [201, 233]]}, {"number": 8, "margin": {"left": 44, "top": 101, "right": 36, "bottom": 95}, "stars": [[256, 101], [211, 120], [118, 125], [268, 126], [202, 144], [44, 158], [107, 164], [227, 172], [220, 209]]}, {"number": 9, "margin": {"left": 42, "top": 46, "right": 43, "bottom": 61}, "stars": [[261, 46], [253, 78], [179, 160], [79, 187], [122, 189], [42, 206], [238, 206], [106, 220], [185, 235], [224, 239], [144, 243]]}, {"number": 10, "margin": {"left": 77, "top": 60, "right": 92, "bottom": 60}, "stars": [[212, 60], [152, 96], [98, 137], [188, 155], [99, 162], [79, 163], [146, 163], [77, 183], [161, 198], [131, 210], [177, 217], [198, 235], [120, 244]]}, {"number": 11, "margin": {"left": 48, "top": 48, "right": 32, "bottom": 61}, "stars": [[105, 48], [169, 64], [125, 73], [228, 81], [147, 82], [88, 107], [157, 112], [206, 114], [129, 120], [180, 125], [59, 126], [141, 137], [272, 142], [48, 146], [215, 149], [240, 155], [196, 176], [75, 197], [217, 198], [121, 215], [83, 227], [125, 243]]}, {"number": 12, "margin": {"left": 62, "top": 76, "right": 47, "bottom": 79}, "stars": [[116, 76], [93, 100], [106, 118], [91, 158], [232, 170], [248, 176], [220, 182], [151, 185], [190, 185], [257, 191], [85, 194], [132, 194], [209, 200], [225, 208], [246, 209], [96, 210], [62, 225]]}]};
+  </script>
+  <script>
+    const CANVAS = document.getElementById('sky');
+    const CTX = CANVAS.getContext('2d');
+    const statusEl = document.getElementById('status');
+
+    const seedInput = document.getElementById('seed');
+    const minIInput = document.getElementById('minI');
+    const maxIInput = document.getElementById('maxI');
+    const fadeInput = document.getElementById('fadeMs');
+    const holdInput = document.getElementById('holdMs');
+    const pauseInput = document.getElementById('pauseMs');
+    const flickerInput = document.getElementById('flickerPct');
+    const starDiameterInput = document.getElementById('starDiameter');
+
+    const fileInput = document.getElementById('fileInput');
+
+    let layerData = (typeof window.STAR_LAYERS_EMBEDDED !== 'undefined') ? window.STAR_LAYERS_EMBEDDED : null;
+    let layout = null;
+    let animId = null;
+    let startTime = 0;
+
+    function drawStar(x, y, intensity, radius) {
+      CTX.fillStyle = `rgb(${intensity}, ${intensity}, ${intensity})`;
+      CTX.beginPath();
+      CTX.arc(x + 0.5, y + 0.5, radius, 0, Math.PI * 2);
+      CTX.fill();
+    }
+
+    function mulberry32(a) {
+      let state = (a >>> 0);
+      return function() {
+        let t = (state = (state + 0x6D2B79F5) >>> 0);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t = (t ^ (t + Math.imul(t ^ (t >>> 7), t | 61))) >>> 0;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function createRng(seedValue) {
+      return mulberry32(seedValue >>> 0);
+    }
+
+    function randint(rng, min, max) {
+      return Math.floor(rng() * (max - min + 1)) + min;
+    }
+
+    function shuffleInPlace(arr, rng) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = randint(rng, 0, i);
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    function buildCircleOffsets(radius) {
+      const out = [];
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (dx * dx + dy * dy <= radius * radius) out.push([dx, dy]);
+        }
+      }
+      return out;
+    }
+
+    function canPlace(layer, dx, dy, occupied, width, height) {
+      for (const [sx, sy] of layer.stars) {
+        const x = sx + dx;
+        const y = sy + dy;
+        if (x < 0 || x >= width || y < 0 || y >= height) return false;
+        if (occupied[y * width + x]) return false;
+      }
+      return true;
+    }
+
+    function markOccupied(layer, dx, dy, occupied, width, height, circle) {
+      for (const [sx, sy] of layer.stars) {
+        const x = sx + dx;
+        const y = sy + dy;
+        for (const [ox, oy] of circle) {
+          const nx = x + ox;
+          const ny = y + oy;
+          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+            occupied[ny * width + nx] = 1;
+          }
+        }
+      }
+    }
+
+    function distance(a, b) {
+      const dx = a[0] - b[0];
+      const dy = a[1] - b[1];
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function isValidLayerData(data) {
+      return !!(
+        data &&
+        data.canvas &&
+        Number.isFinite(data.canvas.width) &&
+        Number.isFinite(data.canvas.height) &&
+        Number.isFinite(data.canvas.img_size) &&
+        Array.isArray(data.layers)
+      );
+    }
+
+    function buildLayoutFromSeed(seedValue) {
+      if (!isValidLayerData(layerData)) {
+        throw new Error('Fel datafil: välj star_layers.json (inte stars_layout.json).');
+      }
+
+      const cfg = layerData.canvas;
+      const width = cfg.width;
+      const height = cfg.height;
+      const minDist = cfg.min_dist;
+      const edgeMargin = cfg.edge_margin;
+      const imgSize = cfg.img_size;
+      const numFillers = cfg.num_fillers;
+      const fillerMinDist = cfg.filler_min_dist;
+      const fillerEdgeMargin = cfg.filler_edge_margin;
+
+      const rng = createRng(seedValue);
+      const occupied = new Uint8Array(width * height);
+      const circle = buildCircleOffsets(minDist);
+
+      const order = Array.from({ length: layerData.layers.length }, (_, i) => i);
+      shuffleInPlace(order, rng);
+
+      const placed = [];
+      for (const idx of order) {
+        const layer = layerData.layers[idx];
+        const m = layer.margin;
+
+        const dxMin = -m.left + edgeMargin;
+        const dxMax = width - imgSize + m.right - edgeMargin;
+        const dyMin = -m.top + edgeMargin;
+        const dyMax = height - imgSize + m.bottom - edgeMargin;
+
+        let found = false;
+        for (let attempt = 0; attempt < 50000; attempt++) {
+          const dx = randint(rng, dxMin, dxMax);
+          const dy = randint(rng, dyMin, dyMax);
+          if (canPlace(layer, dx, dy, occupied, width, height)) {
+            markOccupied(layer, dx, dy, occupied, width, height, circle);
+            placed.push({ number: layer.number, stars: layer.stars, offset: [dx, dy] });
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          throw new Error(`Kunde inte placera lager ${layer.number}. Prova annat seed.`);
+        }
+      }
+
+      const allStars = [];
+      for (const layer of placed) {
+        for (const [sx, sy] of layer.stars) {
+          allStars.push([sx + layer.offset[0], sy + layer.offset[1]]);
+        }
+      }
+
+      const fillers = [];
+      for (let i = 0; i < numFillers; i++) {
+        let found = false;
+        for (let attempt = 0; attempt < 100000; attempt++) {
+          const fx = randint(rng, fillerEdgeMargin, width - fillerEdgeMargin - 1);
+          const fy = randint(rng, fillerEdgeMargin, height - fillerEdgeMargin - 1);
+          const candidate = [fx, fy];
+          const check = allStars.concat(fillers);
+          let ok = true;
+          for (const p of check) {
+            if (distance(candidate, p) < fillerMinDist) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) {
+            fillers.push(candidate);
+            found = true;
+            break;
+          }
+        }
+        if (!found) break;
+      }
+
+      return { seed: seedValue, width, height, placed, fillers };
+    }
+
+    function getIntensityForLayer(layerNumber, tMs, minI, maxI, fadeMs, holdMs, pauseMs) {
+      const ledIndex = layerNumber - 1;
+      const step = fadeMs + holdMs + fadeMs + pauseMs;
+      const cycle = step * 12;
+      const t = ((tMs % cycle) + cycle) % cycle;
+      const local = t - ledIndex * step;
+
+      if (local < 0 || local >= step) return minI;
+      if (local < fadeMs) {
+        const k = fadeMs === 0 ? 1 : local / fadeMs;
+        return minI + (maxI - minI) * k;
+      }
+      if (local < fadeMs + holdMs) return maxI;
+      if (local < fadeMs + holdMs + fadeMs) {
+        const down = local - (fadeMs + holdMs);
+        const k = fadeMs === 0 ? 1 : down / fadeMs;
+        return maxI - (maxI - minI) * k;
+      }
+      return minI;
+    }
+
+    function isLayerActive(layerNumber, tMs, fadeMs, holdMs, pauseMs) {
+      const ledIndex = layerNumber - 1;
+      const step = fadeMs + holdMs + fadeMs + pauseMs;
+      const cycle = step * 12;
+      const t = ((tMs % cycle) + cycle) % cycle;
+      const local = t - ledIndex * step;
+      const activeWindow = fadeMs + holdMs + fadeMs;
+      return local >= 0 && local < activeWindow;
+    }
+
+    function clampIntensity(v) {
+      return Math.max(0, Math.min(255, Math.round(v)));
+    }
+
+    function flickerMultiplier(x, y, tMs, amount) {
+      if (amount <= 0) return 1;
+      const phase = (x * 0.137 + y * 0.173) % (Math.PI * 2);
+      const wave1 = Math.sin(tMs * 0.010 + phase);
+      const wave2 = Math.sin(tMs * 0.017 + phase * 1.9 + 0.9);
+      const mixed = wave1 * 0.7 + wave2 * 0.3;
+      return 1 + amount * mixed;
+    }
+
+    function drawFrame(now) {
+      if (!layout) return;
+
+      const minI = Math.max(0, Math.min(255, Number(minIInput.value) || 0));
+      const maxI = Math.max(minI, Math.min(255, Number(maxIInput.value) || 255));
+      const fadeMs = Math.max(0, Number(fadeInput.value) || 0);
+      const holdMs = Math.max(0, Number(holdInput.value) || 0);
+      const pauseMs = Math.max(0, Number(pauseInput.value) || 0);
+      const flickerAmount = Math.max(0, Math.min(100, Number(flickerInput.value) || 0)) / 100;
+      const starDiameter = Math.max(0.6, Math.min(4, Number(starDiameterInput.value) || 2.5));
+      const starRadius = starDiameter / 2;
+      const tMs = now - startTime;
+
+      CTX.fillStyle = '#000';
+      CTX.fillRect(0, 0, layout.width, layout.height);
+
+      for (const layer of layout.placed) {
+        const baseIntensity = getIntensityForLayer(layer.number, tMs, minI, maxI, fadeMs, holdMs, pauseMs);
+        const activeLayer = isLayerActive(layer.number, tMs, fadeMs, holdMs, pauseMs);
+        const layerFlicker = activeLayer ? 0 : flickerAmount;
+        const [dx, dy] = layer.offset;
+        for (const [sx, sy] of layer.stars) {
+          const x = sx + dx;
+          const y = sy + dy;
+          const intensity = clampIntensity(baseIntensity * flickerMultiplier(x, y, tMs, layerFlicker));
+          drawStar(x, y, intensity, starRadius);
+        }
+      }
+
+      for (const [fx, fy] of layout.fillers) {
+        const intensity = clampIntensity(minI * flickerMultiplier(fx, fy, tMs, flickerAmount));
+        drawStar(fx, fy, intensity, starRadius);
+      }
+
+      animId = requestAnimationFrame(drawFrame);
+    }
+
+    function stopAnimation() {
+      if (animId !== null) {
+        cancelAnimationFrame(animId);
+        animId = null;
+      }
+    }
+
+    function buildLayoutAndRender() {
+      if (!layerData) {
+        statusEl.textContent = 'Ingen lagerdata laddad. Välj star_layers.json i filfältet.';
+        fileInput.click();
+        return;
+      }
+
+      const seedValue = Number(seedInput.value);
+      if (!Number.isFinite(seedValue)) {
+        statusEl.textContent = 'Seed måste vara ett heltal.';
+        return;
+      }
+      const seedInt = Math.trunc(seedValue);
+
+      try {
+        layout = buildLayoutFromSeed(seedInt);
+        CANVAS.width = layout.width;
+        CANVAS.height = layout.height;
+        stopAnimation();
+        startTime = performance.now() - Math.max(0, Number(fadeInput.value) || 0);
+        drawFrame(startTime);
+        statusEl.textContent = `Layout byggd med seed ${seedInt}. Om auto-laddning misslyckades: välj star_layers.json manuellt.`;
+      } catch (err) {
+        statusEl.textContent = String(err.message || err);
+      }
+    }
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const txt = await file.text();
+        const parsed = JSON.parse(txt);
+        if (!isValidLayerData(parsed)) {
+          layerData = null;
+          statusEl.textContent = 'Fel filtyp. Välj star_layers.json (inte stars_layout.json).';
+          return;
+        }
+        layerData = parsed;
+        statusEl.textContent = 'Lagerdata laddad från vald fil.';
+        buildLayoutAndRender();
+      } catch (err) {
+        statusEl.textContent = `Kunde inte läsa fil: ${String(err.message || err)}`;
+      }
+    });
+
+    async function tryAutoLoad() {
+      if (isValidLayerData(layerData)) {
+        statusEl.textContent = 'Inbäddad lagerdata laddad.';
+        buildLayoutAndRender();
+        return;
+      }
+
+      try {
+        const res = await fetch('star_layers.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Kunde inte hämta star_layers.json');
+        const parsed = await res.json();
+        if (!isValidLayerData(parsed)) {
+          throw new Error('Fel innehåll i star_layers.json');
+        }
+        layerData = parsed;
+        statusEl.textContent = 'Lagerdata laddad automatiskt.';
+        buildLayoutAndRender();
+      } catch {
+        statusEl.textContent = 'Auto-laddning misslyckades. Välj star_layers.json manuellt i fältet ovan.';
+      }
+    }
+
+    seedInput.addEventListener('change', buildLayoutAndRender);
+    seedInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') buildLayoutAndRender();
+    });
+
+    tryAutoLoad();
+  </script>
+</body>
+</html>
