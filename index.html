@@ -6,11 +6,19 @@
   <title>Stjärnhimmel-simulering</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #000; color: #eee; overflow: hidden; }
+    #controlsHover {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 24px;
+      z-index: 11;
+    }
     #controls {
       position: fixed;
       top: 10px;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, calc(-100% - 14px));
       z-index: 10;
       background: rgba(0, 0, 0, 0.60);
       border: 1px solid #444;
@@ -20,6 +28,15 @@
       max-height: calc(100vh - 20px);
       overflow-y: auto;
       backdrop-filter: blur(2px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.18s ease, opacity 0.18s ease;
+    }
+    #controlsHover:hover + #controls,
+    #controls:hover {
+      transform: translate(-50%, 0);
+      opacity: 1;
+      pointer-events: auto;
     }
     h1 { margin: 0 0 6px; font-size: 14px; }
     .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: end; margin-bottom: 4px; }
@@ -43,6 +60,7 @@
 </head>
 <body>
   <canvas id="sky" width="610" height="406"></canvas>
+  <div id="controlsHover"></div>
   <div id="controls">
     <h1>Stjärnhimmel-simulering (seed-styrd)</h1>
 
