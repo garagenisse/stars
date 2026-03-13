@@ -1,0 +1,119 @@
+PICO W - KOPPLINGSINSTRUKTION (13 LED-KANALER, UTAN TRANSISTORER)
+=================================================================
+
+Mål
+----
+Bygg en styrning med Raspberry Pi Pico W där:
+- 12 LED-kanaler (A-L) styr stjärnbilderna
+- 1 LED-kanal (X) styr bakgrundsstjärnorna
+- PWM används för dimning/fade/flimmer
+- Parametrar styrs via lokal webbsida/API på Pico W
+
+
+1) Delar du behöver
+-------------------
+- 1x Raspberry Pi Pico W
+- 13x LED (en per fiberknippe)
+- 13x 330 ohm motstånd (ett per LED)
+- Kopplingsdäck/PCB + kablar
+- 5V USB-nätadapter till Pico
+
+Denna instruktion utgår helt från direktdrift via GPIO (inga transistorer).
+
+
+2) Pinout som används i koden
+-----------------------------
+Kanalerna ligger på GP0-GP12:
+
+- GP0  = A
+- GP1  = B
+- GP2  = C
+- GP3  = D
+- GP4  = E
+- GP5  = F
+- GP6  = G
+- GP7  = H
+- GP8  = I
+- GP9  = J
+- GP10 = K
+- GP11 = L
+- GP12 = X (bakgrundsstjärnor)
+
+
+3) Koppling per kanal (utan transistor)
+---------------------------------------
+Bygg följande 13 gånger (en per LED-kanal):
+
+1. Pico GPx -> 330 ohm -> LED anod (+)
+2. LED katod (-) -> GND
+
+Viktigt:
+- Gemensam jord (GND) måste delas av alla kanaler.
+- Koppla aldrig LED utan seriemotstånd.
+- Samma koppling gäller alla 13 kanaler (GP0-GP12).
+
+
+4) Fysisk montering med fiber
+-----------------------------
+- Samla varje stjärnbilds fiber i ett knippe (A-L).
+- Samla bakgrundsfiber i ett separat knippe (X).
+- Rikta en LED mot varje knippe (totalt 13 LED).
+- För bästa koppling: använd krympslang/svart tejp runt LED + fiberände
+	för att minska ljusläckage.
+
+
+5) Ladda kod till Pico W
+------------------------
+Filer som ska ligga i Pico:
+- main.py
+- animation.py
+- api.py
+- config.json
+- www/index.html
+
+Steg:
+1. Installera MicroPython på Pico W (UF2 för Pico W).
+2. Öppna Thonny, anslut Pico.
+3. Lägg in ovan filer i root (och mappen www med index.html).
+4. Fyll i config.json med ditt WiFi:
+	 {
+		 "ssid": "DITT_WIFI",
+		 "password": "DITT_LOSENORD"
+	 }
+5. Starta om Pico.
+
+
+6) Första uppstartstest
+-----------------------
+Efter boot ska du se IP i serial-konsollen, t.ex.:
+	API-URL: http://192.168.1.42/
+
+Testa i mobil/dator på samma nät:
+1. Öppna http://<PICO-IP>/
+2. Ändra t.ex. fade_ms och klicka "Spara & tillämpa"
+3. Kontrollera att LED-mönstret ändras direkt
+
+
+7) Felsökning
+-------------
+Om ingen LED lyser:
+- Kontrollera polaritet på LED (anod/katod)
+- Kontrollera att GND är gemensam
+- Kontrollera att rätt GPIO används (GP0-GP12)
+
+Om webbsidan inte nås:
+- Kontrollera att config.json har rätt SSID/lösenord
+- Kontrollera att Pico och mobil/dator är på samma LAN
+- Kontrollera IP-adressen i serial-loggen
+
+Om ljuset är för svagt:
+- Sänk avståndet mellan LED och fiberknippe
+- Förbättra ljuskoppling med krympslang/svart tejp runt LED/fiberände
+- Justera min/max-intensitet via webbsidan
+
+
+8) Säkerhetsgränser
+-------------------
+- Överskrid inte rimlig ström per LED och kanal.
+- Håll dig till 330 ohm per LED enligt denna design.
+- Om du senare vill ha högre ljusstyrka kan du bygga om till transistor/MOSFET-lösning.

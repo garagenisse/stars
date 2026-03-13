@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stjärnhimmel</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a12; color: #ddd; font-family: system-ui, sans-serif;
+         min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .card { background: #14141f; border: 1px solid #2a2a40; border-radius: 12px;
+          padding: 24px; width: min(420px, calc(100vw - 32px)); }
+  h1 { font-size: 16px; font-weight: 600; letter-spacing: .08em; color: #aac;
+       text-transform: uppercase; margin-bottom: 20px; text-align: center; }
+  .status { background: #0d0d1a; border: 1px solid #222236; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 20px; font-size: 13px;
+            display: flex; align-items: center; gap: 10px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #334; flex-shrink: 0; }
+  .dot.active { background: #88aaff; box-shadow: 0 0 6px #88aaff; }
+  .status-text { color: #99b; }
+  .status-text span { color: #cce; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: #88a; }
+  input[type=number] {
+    background: #0d0d1a; border: 1px solid #2a2a40; border-radius: 6px;
+    color: #dde; font-size: 14px; padding: 7px 10px; width: 100%;
+    outline: none; transition: border-color .15s;
+  }
+  input[type=number]:focus { border-color: #556; }
+  button {
+    width: 100%; padding: 11px; border: none; border-radius: 8px;
+    background: #2a3a6a; color: #cce; font-size: 14px; font-weight: 600;
+    cursor: pointer; letter-spacing: .04em; transition: background .15s;
+  }
+  button:hover { background: #3a4a8a; }
+  button:active { background: #223; }
+  .msg { text-align: center; font-size: 12px; margin-top: 12px; min-height: 16px;
+         color: #5a8; }
+  .msg.err { color: #a55; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>&#9733; Stjärnhimmel</h1>
+
+  <div class="status">
+    <div class="dot" id="dot"></div>
+    <div class="status-text" id="statusText">Hämtar status&hellip;</div>
+  </div>
+
+  <form id="form">
+    <div class="grid">
+      <label>Seed
+        <input type="number" name="seed" value="12345">
+      </label>
+      <label>Flimmer %
+        <input type="number" name="flicker_pct" min="0" max="100" value="30">
+      </label>
+      <label>MIN intensitet
+        <input type="number" name="min_intensity" min="0" max="255" value="40">
+      </label>
+      <label>MAX intensitet
+        <input type="number" name="max_intensity" min="0" max="255" value="255">
+      </label>
+      <label>Fade-tid (ms)
+        <input type="number" name="fade_ms" min="0" value="2500">
+      </label>
+      <label>Håll-tid (ms)
+        <input type="number" name="hold_ms" min="0" value="1800">
+      </label>
+      <label>Paus-tid (ms)
+        <input type="number" name="pause_ms" min="0" value="700">
+      </label>
+    </div>
+    <button type="submit">Spara &amp; tillämpa</button>
+  </form>
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+  const LABELS = 'ABCDEFGHIJKL';
+  const form   = document.getElementById('form');
+  const dot    = document.getElementById('dot');
+  const stTxt  = document.getElementById('statusText');
+  const msg    = document.getElementById('msg');
+
+  async function loadParams() {
+    try {
+      const r = await fetch('/params');
+      const p = await r.json();
+      for (const [k, v] of Object.entries(p)) {
+        const el = form.elements[k];
+        if (el) el.value = v;
+      }
+    } catch(e) { showMsg('Kunde inte läsa parametrar: ' + e, true); }
+  }
+
+  async function pollStatus() {
+    try {
+      const r  = await fetch('/status');
+      const s  = await r.json();
+      const lbl = LABELS[s.active_layer] || '?';
+      dot.classList.add('active');
+      stTxt.innerHTML = 'Aktiv: <span>' + lbl + '</span> &nbsp;|&nbsp; t = ' + Math.round(s.t_ms/1000) + ' s';
+    } catch(e) {
+      dot.classList.remove('active');
+      stTxt.textContent = 'Ingen kontakt med Pico';
+    }
+  }
+
+  function showMsg(text, isErr) {
+    msg.textContent = text;
+    msg.className   = 'msg' + (isErr ? ' err' : '');
+    setTimeout(() => { msg.textContent = ''; msg.className = 'msg'; }, 3000);
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const data = {};
+    for (const el of form.elements) {
+      if (el.name) data[el.name] = Number(el.value);
+    }
+    try {
+      const r = await fetch('/params', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      const res = await r.json();
+      if (res.ok) showMsg('Sparat!');
+      else        showMsg('Fel: ' + res.error, true);
+    } catch(e) { showMsg('Anslutningsfel: ' + e, true); }
+  });
+
+  loadParams();
+  pollStatus();
+  setInterval(pollStatus, 2000);
+</script>
+</body>
+</html>
